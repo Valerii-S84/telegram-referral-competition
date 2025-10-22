@@ -1,0 +1,126 @@
+# N8N Telegram Referral Bot - .gitignore
+
+# ========================================
+# КРИТИЧНО: Не комітити чутливі дані!
+# ========================================
+
+# Credentials та токени
+*credentials*.json
+*token*.txt
+*secret*.txt
+.env
+.env.local
+.env.production
+
+# N8N специфічні файли
+.n8n/
+n8n-data/
+*.db
+*.sqlite
+*.sqlite3
+
+# Конфігурації з реальними даними
+config.local.json
+production-config.json
+*-production.json
+
+# Backup файли
+*.backup
+*.bak
+backup/
+backups/
+
+# Логи
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Node.js
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# Залежності
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# IDE та редактори
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+
+# Тестові дані
+test-data/
+*.test.json
+mock-data/
+
+# Тимчасові файли
+tmp/
+temp/
+*.tmp
+
+# Google Sheets кеш
+.sheets-cache/
+
+# SSL сертифікати
+*.pem
+*.key
+*.crt
+
+# Docker
+docker-compose.override.yml
+.dockerignore
+
+# Системні файли
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Desktop.ini
+
+# Файли користувацьких даних
+user-data/
+participants-data/
+real-user-ids.txt
+
+# Приватні нотатки
+notes/
+private/
+personal/
+
+# Deployment конфігурації
+deploy/
+deployment/
+production/
+
+# Архіви
+*.zip
+*.tar.gz
+*.rar
+
+# Скріншоти з реальними даними
+screenshots-private/
+screen-*.png
+
+# ========================================
+# Можна комітити (але без реальних даних):
+# ========================================
+# !telegram-referral-workflow.json (з placeholder'ами)
+# !README.md
+# !SECURITY.md
+# !LICENSE
+# !.gitignore
+# !CONTRIBUTING.md
+# !examples/ (тільки приклади без реальних даних)

@@ -1,0 +1,1380 @@
+{
+  "name": "telegram_referral",
+  "nodes": [
+    {
+      "parameters": {
+        "updates": [
+          "*"
+        ],
+        "additionalFields": {}
+      },
+      "id": "b44aaf68-be0c-4e0f-aee7-7c5f09b39f93",
+      "name": "Telegram Bot Trigger",
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        -176
+      ],
+      "webhookId": "a8f72b4f-fe8a-421b-92dc-2760bade6a0d",
+      "credentials": {
+        "telegramApi": {
+          "id": "zAJI9PsXwiZujqBe",
+          "name": "Frend"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "channelLink",
+              "value": "https://t.me/YOUR_CHANNEL",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "botUsername",
+              "value": "YOUR_BOT_USERNAME",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "spreadsheetId",
+              "value": "YOUR_GOOGLE_SHEET_ID",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "sheetName",
+              "value": "Users",
+              "type": "string"
+            },
+            {
+              "id": "id-5",
+              "name": "allowedParticipants",
+              "value": "={{ [\"123456789\", \"987654321\", \"111222333\", \"444555666\", \"777888999\", \"100200300\", \"400500600\", \"700800900\"] }}",
+              "type": "object"
+            },
+            {
+              "id": "id-6",
+              "name": "bonusThreshold",
+              "value": "5",
+              "type": "number"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "id": "73f967e1-86a2-45f7-a543-b426d38ae350",
+      "name": "Workflow Configuration",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Telegram message and extract relevant data\nconst items = $input.all();\nconst outputItems = [];\n\nfor (const item of items) {\n  const message = item.json.message || {};\n  const from = message.from || {};\n  const chat = message.chat || {};\n  const text = message.text || '';\n  \n  // Extract user information\n  const user_id = String(from.id);\n  const username = from.username || from.first_name || 'Unknown';\n  const chat_id = String(chat.id);\n  \n  // Get allowed participants list\n  const config = $('Workflow Configuration').first().json;\n  const allowedParticipants = config.allowedParticipants || [];\n  const isParticipant = allowedParticipants.includes(user_id);\n  \n  // Extract referral parameter from /start command\n  let referral_code = null;\n  let referrer_id = null;\n  \n  if (text.startsWith('/start')) {\n    const parts = text.split(' ');\n    if (parts.length > 1) {\n      referral_code = parts[1];\n      // Extract referrer ID from ref_123456 format\n      if (referral_code.startsWith('ref_')) {\n        referrer_id = referral_code.replace('ref_', '');\n      }\n    }\n  }\n  \n  // Extract command if present\n  let command = null;\n  if (text.startsWith('/')) {\n    command = text.split(' ')[0].substring(1);\n  }\n  \n  outputItems.push({\n    json: {\n      user_id: user_id,\n      username: username,\n      chat_id: chat_id,\n      message_text: text,\n      referral_code: referral_code,\n      referrer_id: referrer_id,\n      command: command,\n      is_referral: referrer_id !== null,\n      is_participant: isParticipant,\n      original_message: message\n    }\n  });\n}\n\nreturn outputItems;"
+      },
+      "id": "153dd942-ea4e-4b89-b1bb-33d862f6968b",
+      "name": "Parse Telegram Message",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -448,
+        -176
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "start",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "cad691ff-fbc3-4cd3-8b43-70126b307612",
+      "name": "Check If Start Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -240,
+        -272
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Workflow Configuration').first().json.sheetName }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "user_id",
+              "lookupValue": "={{ $('Parse Telegram Message').first().json.user_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "daa7ae38-da21-4d4b-b039-92abd417c7b4",
+      "name": "Check User Exists",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        0,
+        -288
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.length }}",
+              "rightValue": "0",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "11c11038-04dc-4204-a22f-9dcf6719d13c",
+      "name": "Check If New User",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        -288
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Workflow Configuration').first().json.sheetName }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $('Parse Telegram Message').first().json.user_id }}",
+            "username": "={{ $('Parse Telegram Message').first().json.username }}",
+            "chat_id": "={{ $('Parse Telegram Message').first().json.chat_id }}",
+            "invited_by": "={{ $('Parse Telegram Message').first().json.referrer_id || '' }}",
+            "join_date": "={{ $now.toISO() }}",
+            "total_invites": "0",
+            "is_participant": "={{ $('Parse Telegram Message').first().json.is_participant }}",
+            "reward_sent": "false"
+          },
+          "matchingColumns": [
+            "user_id"
+          ],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "username",
+              "displayName": "username",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "chat_id",
+              "displayName": "chat_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "invited_by",
+              "displayName": "invited_by",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "join_date",
+              "displayName": "join_date",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_invites",
+              "displayName": "total_invites",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "is_participant",
+              "displayName": "is_participant",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reward_sent",
+              "displayName": "reward_sent",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "f9228a00-61a2-42bc-8cce-4aa1fb423611",
+      "name": "Add New User",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        -304
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').first().json.chat_id }}",
+        "text": "=Вітаємо! Ви успішно приєдналися. 🎉\n\nПриєднуйтесь до нашого каналу:\n{{ $('Workflow Configuration').first().json.channelLink }}",
+        "additionalFields": {}
+      },
+      "id": "005c48e9-c39a-4fd4-8112-c7a077e3a6a4",
+      "name": "Send Welcome Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -304
+      ],
+      "webhookId": "59c3125a-dbf8-43f7-b233-8957bd09e7db",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Parse Telegram Message').first().json.referrer_id }}",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "c4098f33-c7f0-4dca-a446-22a1674ece2f",
+      "name": "Check If Has Referrer",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        896,
+        -304
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Workflow Configuration').first().json.sheetName }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "user_id",
+              "lookupValue": "={{ $('Parse Telegram Message').first().json.referrer_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "95578e99-ae39-4c0d-a551-a21ba66e5fd6",
+      "name": "Get Referrer Data",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        -320
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Calculate new invite count with protection against self-referral\nconst items = $input.all();\n\nif (items.length === 0) {\n  // Referrer not found\n  return [];\n}\n\nconst referrer = items[0].json;\nconst newUserId = $('Parse Telegram Message').first().json.user_id;\n\n// 🛡️ ЗАЩИТА ОТ САМОЗАПРОШЕННЯ\nif (referrer.user_id === newUserId) {\n  console.log('⛔️ Self-referral attempt blocked');\n  return [];\n}\n\n// Check if referrer is a participant\nconst isParticipant = referrer.is_participant === 'true' || referrer.is_participant === true;\n\nif (!isParticipant) {\n  // Referrer is not a participant, don't count invite\n  console.log('⛔️ Referrer is not a participant');\n  return [];\n}\n\nconst currentInvites = parseInt(referrer.total_invites) || 0;\nconst newInvites = currentInvites + 1;\n\nreturn [{\n  json: {\n    user_id: referrer.user_id,\n    chat_id: referrer.chat_id,\n    username: referrer.username,\n    total_invites: newInvites,\n    previous_invites: currentInvites,\n    is_participant: isParticipant,\n    reward_sent: referrer.reward_sent\n  }\n}];"
+      },
+      "id": "cfb5b090-6626-4cb8-aa8d-9d8b93115b98",
+      "name": "Calculate New Invites",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        16,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Workflow Configuration').first().json.sheetName }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "total_invites": "={{ $json.total_invites }}"
+          },
+          "matchingColumns": [
+            "user_id"
+          ],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "total_invites",
+              "displayName": "total_invites",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d6eb88a7-7330-4e5d-9d30-a0154c738daf",
+      "name": "Update Referrer Count",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        240,
+        -528
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "🎉 +1 запрошення! Ви запросили нового користувача.\n\nВсього запрошень: {{ $json.total_invites }}\n\n🏆 Ви берете участь у змаганні!",
+        "additionalFields": {}
+      },
+      "id": "fbcab5ec-0cd7-438e-bc75-13b698b708d9",
+      "name": "Notify Referrer",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        480,
+        -528
+      ],
+      "webhookId": "a039ec33-b53d-4ef0-931d-c4b1c91a2adb",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.total_invites }}",
+              "rightValue": "={{ $('Workflow Configuration').first().json.bonusThreshold }}",
+              "operator": {
+                "type": "number",
+                "operation": "equals"
+              }
+            },
+            {
+              "id": "id-2",
+              "leftValue": "={{ $json.reward_sent }}",
+              "rightValue": "false",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "96fb53c0-beaa-447b-83ec-d6ccde946664",
+      "name": "Check If Bonus Eligible",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        688,
+        -528
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "🎉🎉🎉 ВІТАЄМО! 🎉🎉🎉\n\nВи досягли {{ $('Workflow Configuration').first().json.bonusThreshold }} запрошень і отримуєте спеціальний бонус!\n\nДякуємо за вашу активність! 🌟",
+        "additionalFields": {}
+      },
+      "id": "39f6a6f1-0c7e-4792-aab2-9f65763928b2",
+      "name": "Send Bonus Message",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        -544
+      ],
+      "webhookId": "a47d4458-75c9-40dc-b570-b384380b4a18",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Workflow Configuration').first().json.sheetName }}"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "user_id": "={{ $json.user_id }}",
+            "reward_sent": "true"
+          },
+          "matchingColumns": [
+            "user_id"
+          ],
+          "schema": [
+            {
+              "id": "user_id",
+              "displayName": "user_id",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "reward_sent",
+              "displayName": "reward_sent",
+              "required": false,
+              "defaultMatch": false,
+              "canBeUsedToMatch": false
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7edfdc60-ea46-462e-9d6f-498dcd89b9fe",
+      "name": "Mark Reward Sent",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        1120,
+        -544
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "myref",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "7f908338-b06d-40f1-afcf-5193cf749d86",
+      "name": "Check If MyRef Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -16,
+        -32
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Parse Telegram Message').first().json.is_participant }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "41118e9c-df6f-4104-bc34-325d7ea37219",
+      "name": "Check If Participant MyRef",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        224,
+        -48
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Workflow Configuration').first().json.sheetName }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "user_id",
+              "lookupValue": "={{ $('Parse Telegram Message').first().json.user_id }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d340d433-07cf-4c88-a6f2-e549b2ff8dc6",
+      "name": "Get User Stats",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        448,
+        -64
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').first().json.chat_id }}",
+        "text": "=🏆 *Ваша статистика у змаганні*\n\n👤 Ім'я: {{ $json.username }}\n👥 Запрошень: *{{ $json.total_invites }}*\n📅 Дата приєднання: {{ $json.join_date.split('T')[0] }}\n{{ $json.reward_sent === 'true' ? '🎁 Бонус отримано!' : '' }}\n\n🔗 *Ваше реферальне посилання:*\n`https://t.me/{{ $('Workflow Configuration').first().json.botUsername }}?start=ref_{{ $json.user_id }}`\n\n💡 Запросіть якомога більше людей!\n\n📊 Команди:\n/myref - Моя статистика\n/top - Топ учасників змагання",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "b8396c5d-8a19-44f0-b0d3-df99010aec24",
+      "name": "Send My Stats",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        672,
+        -64
+      ],
+      "webhookId": "4ca2c82c-7a45-4f34-967b-d5f3d7020958",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').first().json.chat_id }}",
+        "text": "⛔️ Ця команда доступна тільки учасникам змагання.",
+        "additionalFields": {}
+      },
+      "id": "d09af385-bc8d-4eca-8986-93967b206c6b",
+      "name": "Not Participant MyRef",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        448,
+        80
+      ],
+      "webhookId": "not-participant-myref-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $json.command }}",
+              "rightValue": "top",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "02f269eb-5809-4d92-bdc8-4354ef207a80",
+      "name": "Check If Top Command",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        16,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose"
+          },
+          "conditions": [
+            {
+              "id": "id-1",
+              "leftValue": "={{ $('Parse Telegram Message').first().json.is_participant }}",
+              "rightValue": "true",
+              "operator": {
+                "type": "boolean",
+                "operation": "true"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "d868b719-da7d-4cf7-a081-6f8d8c6dc899",
+      "name": "Check If Participant Top",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        240,
+        320
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $('Workflow Configuration').first().json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $('Workflow Configuration').first().json.sheetName }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "is_participant",
+              "lookupValue": "true"
+            }
+          ]
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "detectAutomatically"
+            }
+          }
+        }
+      },
+      "id": "2f3b89cc-d0af-4d3c-8ab5-2fbb20b2851d",
+      "name": "Get Participants Only",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        464,
+        272
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Sort and format leaderboard for participants only\nconst items = $input.all();\n\n// Sort by total_invites descending\nconst sortedUsers = items\n  .map(item => item.json)\n  .filter(user => user.is_participant === 'true' || user.is_participant === true)\n  .sort((a, b) => {\n    const aInvites = parseInt(a.total_invites) || 0;\n    const bInvites = parseInt(b.total_invites) || 0;\n    return bInvites - aInvites;\n  });\n\nlet leaderboardText = \"🏆 *Топ учасників змагання* 🏆\\n\\n\";\n\nconst medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'];\n\nfor (let i = 0; i < sortedUsers.length; i++) {\n  const user = sortedUsers[i];\n  const position = i + 1;\n  const medal = medals[i] || `${position}.`;\n  const username = user.username || 'Користувач';\n  const invites = parseInt(user.total_invites) || 0;\n  const rewardIcon = (user.reward_sent === 'true' || user.reward_sent === true) ? ' 🎁' : '';\n  \n  leaderboardText += `${medal} *${username}*${rewardIcon} - ${invites} запрошень\\n`;\n}\n\nif (sortedUsers.length === 0) {\n  leaderboardText = \"📊 Поки що немає даних для лідерборду\";\n} else {\n  leaderboardText += \"\\n🔥 Продовжуйте запрошувати!\";\n}\n\nreturn [{\n  json: {\n    leaderboard: leaderboardText\n  }\n}];"
+      },
+      "id": "acce5073-5c5b-4d09-b6af-784c50b6ecdc",
+      "name": "Format Leaderboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        688,
+        272
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').first().json.chat_id }}",
+        "text": "={{ $json.leaderboard }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "2d7e7bb2-2c43-4653-a421-cc9c8c878ccf",
+      "name": "Send Leaderboard",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        928,
+        272
+      ],
+      "webhookId": "163cd269-67f6-4256-a396-a66ec06976a5",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $('Parse Telegram Message').first().json.chat_id }}",
+        "text": "⛔️ Ця команда доступна тільки учасникам змагання.",
+        "additionalFields": {}
+      },
+      "id": "838c5f8c-1de2-4e0e-acdf-4a979c9e1757",
+      "name": "Not Participant Top",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        432,
+        464
+      ],
+      "webhookId": "not-participant-top-webhook",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "weeks",
+              "triggerAtDay": [
+                1
+              ],
+              "triggerAtHour": 10
+            }
+          ]
+        }
+      },
+      "id": "f198ecaa-1d1d-4fad-8083-488771002bbe",
+      "name": "Weekly Leaderboard Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -896,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "id-1",
+              "name": "channelLink",
+              "value": "https://t.me/YOUR_CHANNEL",
+              "type": "string"
+            },
+            {
+              "id": "id-2",
+              "name": "botUsername",
+              "value": "YOUR_BOT_USERNAME",
+              "type": "string"
+            },
+            {
+              "id": "id-3",
+              "name": "spreadsheetId",
+              "value": "YOUR_GOOGLE_SHEET_ID",
+              "type": "string"
+            },
+            {
+              "id": "id-4",
+              "name": "sheetName",
+              "value": "Users",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "615b9c8f-63e8-4880-b185-41c488c367fe",
+      "name": "Weekly Config",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        -672,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "documentId": {
+          "__rl": true,
+          "mode": "id",
+          "value": "={{ $json.spreadsheetId }}"
+        },
+        "sheetName": {
+          "__rl": true,
+          "mode": "name",
+          "value": "={{ $json.sheetName }}"
+        },
+        "filtersUI": {
+          "values": [
+            {
+              "lookupColumn": "is_participant",
+              "lookupValue": "true"
+            }
+          ]
+        },
+        "options": {
+          "dataLocationOnSheet": {
+            "values": {
+              "rangeDefinition": "detectAutomatically"
+            }
+          }
+        }
+      },
+      "id": "2083ddb1-b414-4a15-a670-99255c3d488e",
+      "name": "Get Weekly Participants",
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.7,
+      "position": [
+        -448,
+        592
+      ],
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7VK8YLGFOm5pMLQq",
+          "name": "Google Sheets account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "// Format weekly leaderboard and prepare for sending to each participant\nconst items = $input.all();\n\n// Sort by total_invites descending\nconst sortedUsers = items\n  .map(item => item.json)\n  .filter(user => user.is_participant === 'true' || user.is_participant === true)\n  .sort((a, b) => {\n    const aInvites = parseInt(a.total_invites) || 0;\n    const bInvites = parseInt(b.total_invites) || 0;\n    return bInvites - aInvites;\n  });\n\n// Emojis for positions\nconst medals = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣'];\n\nlet leaderboardText = '🎯 *Тижневий лідерборд змагання*\\n\\n';\n\n// Format each user in the leaderboard\nfor (let i = 0; i < sortedUsers.length; i++) {\n  const user = sortedUsers[i];\n  const position = i + 1;\n  const emoji = medals[i] || `${position}.`;\n  const username = user.username || 'Користувач';\n  const invites = parseInt(user.total_invites) || 0;\n  const rewardIcon = (user.reward_sent === 'true' || user.reward_sent === true) ? ' 🎁' : '';\n  \n  leaderboardText += `${emoji} *${username}*${rewardIcon} - ${invites} запрошень\\n`;\n}\n\nif (sortedUsers.length === 0) {\n  leaderboardText = '📊 Поки що немає даних для лідерборду';\n} else {\n  leaderboardText += '\\n🔥 Продовжуйте запрошувати друзів!';\n}\n\n// Return one item per participant with their chat_id\nreturn sortedUsers.map(user => ({\n  json: {\n    chat_id: user.chat_id,\n    username: user.username,\n    leaderboard: leaderboardText\n  }\n}));"
+      },
+      "id": "05f02aee-4d2d-44aa-957b-1f3119de62d4",
+      "name": "Format Weekly Leaderboard",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -224,
+        592
+      ]
+    },
+    {
+      "parameters": {
+        "chatId": "={{ $json.chat_id }}",
+        "text": "={{ $json.leaderboard }}",
+        "additionalFields": {
+          "parse_mode": "Markdown"
+        }
+      },
+      "id": "48dd1d91-4948-4921-97a4-289b84f5f10f",
+      "name": "Send Weekly to Each Participant",
+      "type": "n8n-nodes-base.telegram",
+      "typeVersion": 1.2,
+      "position": [
+        0,
+        592
+      ],
+      "webhookId": "4a8341ff-df7a-4931-b62f-8e512ba8796e",
+      "credentials": {
+        "telegramApi": {
+          "id": "uuQJe3vbZnhAKQRo",
+          "name": "ChikGPT"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Telegram Bot Trigger": {
+      "main": [
+        [
+          {
+            "node": "Workflow Configuration",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Workflow Configuration": {
+      "main": [
+        [
+          {
+            "node": "Parse Telegram Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Telegram Message": {
+      "main": [
+        [
+          {
+            "node": "Check If Start Command",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check If MyRef Command",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Check If Top Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Start Command": {
+      "main": [
+        [
+          {
+            "node": "Check User Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check User Exists": {
+      "main": [
+        [
+          {
+            "node": "Check If New User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If New User": {
+      "main": [
+        [
+          {
+            "node": "Add New User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add New User": {
+      "main": [
+        [
+          {
+            "node": "Send Welcome Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Welcome Message": {
+      "main": [
+        [
+          {
+            "node": "Check If Has Referrer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Has Referrer": {
+      "main": [
+        [
+          {
+            "node": "Get Referrer Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Referrer Data": {
+      "main": [
+        [
+          {
+            "node": "Calculate New Invites",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate New Invites": {
+      "main": [
+        [
+          {
+            "node": "Update Referrer Count",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Update Referrer Count": {
+      "main": [
+        [
+          {
+            "node": "Notify Referrer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Referrer": {
+      "main": [
+        [
+          {
+            "node": "Check If Bonus Eligible",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Bonus Eligible": {
+      "main": [
+        [
+          {
+            "node": "Send Bonus Message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Bonus Message": {
+      "main": [
+        [
+          {
+            "node": "Mark Reward Sent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If MyRef Command": {
+      "main": [
+        [
+          {
+            "node": "Check If Participant MyRef",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Participant MyRef": {
+      "main": [
+        [
+          {
+            "node": "Get User Stats",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not Participant MyRef",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Stats": {
+      "main": [
+        [
+          {
+            "node": "Send My Stats",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Top Command": {
+      "main": [
+        [
+          {
+            "node": "Check If Participant Top",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Participant Top": {
+      "main": [
+        [
+          {
+            "node": "Get Participants Only",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Not Participant Top",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Participants Only": {
+      "main": [
+        [
+          {
+            "node": "Format Leaderboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Leaderboard": {
+      "main": [
+        [
+          {
+            "node": "Send Leaderboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Leaderboard Trigger": {
+      "main": [
+        [
+          {
+            "node": "Weekly Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Weekly Config": {
+      "main": [
+        [
+          {
+            "node": "Get Weekly Participants",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Weekly Participants": {
+      "main": [
+        [
+          {
+            "node": "Format Weekly Leaderboard",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Weekly Leaderboard": {
+      "main": [
+        [
+          {
+            "node": "Send Weekly to Each Participant",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5b951021-95a4-4ee3-8842-510aa08754fd",
+  "meta": {
+    "instanceId": "1a9877cd3aaf0356b9d475f31696a3132f8a82175c0314271b43404fd9539334"
+  },
+  "id": "WR7H0PWcsOhylccN",
+  "tags": []
+}
